@@ -1,0 +1,373 @@
+//????????????????????????????????????????????????????????????????????????????????????
+//Documentation
+
+/*
+Program 7, C++ unordered_map container
+CS-2433, C/C++ 
+Richard L. Churchill
+Due: 11-18-23
+
+11-16-2023, 3:01 p.m.
+Joshua Thomas Price
+A20371815
+
+Includesd a new operator that causes printing of values to stdout.
+@# 		
+Prints the contents of the stack, all defined constants and all defined variables,
+both with their current values, in parallel columns. Stack contents will be
+printed bottom of stack first.
+
+The programs continues to prompt for input until the user decides to 
+program using the "#stop" command which will also print the contents 
+of the stack.
+*/
+
+#include <iostream>
+#include <unordered_map>
+#include <iomanip>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <ctype.h>
+
+#define pi 	3.1415926
+#define eps	2.7182818
+
+using namespace std;
+
+//*************************************************************************************
+//Node Struct Definitions
+
+//opperand + opperator Node construct
+typedef struct node{ 
+	float val; 						//Data in node
+	struct node *next; 				//Next node pointer
+} tnode;
+
+//Constant/Variable Class 
+class tcvNode {
+public:
+    int type;              			//constant or variable
+    float value;                  
+   	tcvNode* next;           
+   	tcvNode* last;           
+    
+    //Class constructor
+   	tcvNode(int nodeType, float nodeValue)
+   	: type(nodeType), value(nodeValue), next(NULL), last(NULL) {}
+};
+
+tnode *stack = 	NULL;
+unordered_map<string, tcvNode*> Constant_Map;
+unordered_map<string, tcvNode*> Variable_Map;
+
+//------------------------------------------------------------------------------------
+//Function Definitions
+	
+void push (float x) {				//push function pushes x onto the stack 
+	tnode *pnode = new tnode;	//(tnode*)malloc(sizeof(tnode));
+	
+	if (pnode == NULL) {
+		cerr << "Memory Error" <<  endl;
+		exit(1);
+	}
+	
+	pnode->val = x;
+	pnode->next = stack;
+	stack = pnode;
+}
+
+float pop(){ 						//pop function pops the top element off the stack 
+	if(stack == NULL){
+		cerr << "Stack is Empty" <<  endl;
+		exit(0);
+	}
+	
+	float v = stack->val;
+	tnode *pnode = stack;
+	stack = stack->next;
+	delete pnode;
+	return v;
+}
+
+void printContents(int includeCVStack){
+	cout << "\n\tPrinting Contents" <<  endl;
+	cout << "Stack Contents:" <<  endl;
+    while (stack != NULL) {
+    	 cout << setw(5) << pop() << endl;
+    }
+    if (includeCVStack == 1){
+    	cout << setw(2) << "|Names|" << setw(2) << "|Values|" << endl;
+    	for (const auto &pair : Constant_Map) {
+    		cout << setw(5) << pair.first << setw(3) << pair.second->value << endl;
+		}
+		for (const auto &pair : Variable_Map) {
+    		cout << setw(5) << pair.first << setw(3) << pair.second->value << endl;
+		}
+	}
+}
+
+tcvNode* findNode(const string &name) {
+    
+    auto Ccurrent = Constant_Map.find(name); //using auto for the return of the find fucntion
+    if( Ccurrent != Constant_Map.end()){
+    	return Ccurrent->second;
+	}
+	
+	auto Vcurrent = Variable_Map.find(name);
+	if( Vcurrent != Variable_Map.end()){
+    	return Vcurrent->second;
+	}
+	return NULL;
+}
+
+void handleOP(char op){				//handles the single character operations
+	float x;
+	float y;
+	switch (op) {
+		case '+': {
+			push(pop() + pop());
+			break;
+		}
+		case '-':{
+			float x = pop();
+			push(pop() - x);
+			break;
+		}
+		case '*': {
+			push(pop() * (pop()));
+			break;
+		}
+		case '/':{
+			float x = pop();
+			push(pop() / x);
+			break;
+		}
+		case '^':{
+			double y = pop();
+			double x = pop();
+			x = pow( x,y );
+			push(x);
+			break;
+		}
+		case '&':{
+			float x = pop();
+			push(x);
+			push(x);
+			break;
+		}
+		case '~':{
+			float x = pop();
+			x = -x;
+			push(x);
+			break;
+		}
+		case '\'':{
+			float x = pop();
+			push(1/x);
+			break;
+		}
+		case '%':{
+			float x = pop();
+			float y = pop();
+			push(x);
+			push(y);
+			break;
+		}
+		default:{
+			printf("Input does not match any known operators\n");
+			break;
+		}	
+	}
+}
+
+void handlePreConstants(char in[]){
+	
+	if(strcmp(in, "pi") == 0){
+		push(pi);
+	}
+	if(strcmp(in, "eps") == 0){
+		push(eps);
+	}
+}
+
+void handleWordOps(char in[]){
+	if(strcmp(in, "sin") == 0){
+		printf("sin");
+		float a = pop();
+		push(sin(a));
+		}
+	else if(strcmp(in, "cos") == 0){
+		float a = pop();
+		push(cos(a));
+	}
+	else if(strcmp(in, "tan") == 0){
+		float a = pop();
+		push(tan(a));
+	}
+	else if(strcmp(in, "sqrt") == 0){
+		float a = pop();
+		push(sqrt(a));
+	}
+	else{
+		printf("Error: Input is not a valid operator\n");
+	}
+}
+
+//___________________________________________________________________________________
+//Main
+
+int main(int argc, char* argv[]) {
+	
+	tnode *pnode;
+	char intext[16];
+	float value;
+	
+	while (1) {
+		cin >> intext;
+		 
+		//Proccesses to handle the user input
+		pnode = (tnode*)malloc(sizeof(tnode));
+		
+		//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+		//stop
+		if (strcmp(intext, "#stop") == 0){ 	
+			printContents(0);
+			exit(0);
+			}
+		
+		//float
+		else if (sscanf(intext, "%f", &pnode->val) == 1){
+			push(pnode->val); 
+		}
+		
+		//Constsant
+		else if (intext[0] == '!'){
+			if (isalpha(intext[1])){
+
+				string name = intext + 1; // Removes !
+				
+	            if (findNode(name) != NULL && findNode(name)->type == 0) {
+	            	cout << "Constant already defined" << endl;
+	                exit(0);
+	            }
+            
+            	//make a new node pointer with that name and the popped value
+            	tcvNode* newNode = new tcvNode(0, pop());
+            	Constant_Map[name] = newNode;
+            	
+            	
+	            cout << "Constant " << name << " is set to " << newNode->value << endl;
+	        }
+	        else {
+				 cout << "User Input Error " << endl;
+			}
+		}
+		
+		//Varaible
+		else if (intext[0] == '$'){
+			if (isalpha(intext[1])){
+				string name = intext + 1; // Remove '$' from the name
+				
+	            if ((findNode(name) != NULL) && (findNode(name)->type == 1) ) { //if the findNode fucntion finds a match
+	            	tcvNode* existingNode = findNode(name);
+					//tcvNode existingNode = tcvNode( findNode(name)->type, findNode(name)->value, findNode(name)->name );
+	                
+					existingNode->value = pop(); //update value
+	                cout << "Updated variable to: " << existingNode->value << endl;
+	            } 
+				else {
+					//make a new node pointer with that name and the popped value
+				tcvNode* newNode = new tcvNode(1, pop());
+				Variable_Map[name] = newNode;
+	
+            	cout << "Variable " << name << " is set to: " << newNode->value << endl;
+				}
+				
+			}
+			else {
+				 cout << "User Input Error" << endl;
+			}
+		}
+		
+		//Pops and prints the value
+		else if (strcmp(intext, "@!") == 0){
+			 cout << pop() << endl;
+		}
+		
+		//Prints the stack, and the cv stack
+		else if (strcmp(intext, "@#") == 0){
+			 printContents(1);
+		}
+		
+		//Prints the value of the variable or constant named SYNTAX: @<varName>
+		else if ((intext[0] == '@') && (intext[1] == '<')){
+			char* name = strdup(intext + 2); // Removes !
+			 
+			int c = 0;
+			for (int i = 0; i < strlen(name); i++){ //loops through string to remove '>'
+				if (name[i] != '>'){
+					name[c] = name[i];
+					c++;
+				}
+			}
+			name[c] = '\0'; //sets the last now empty char to the null terminator
+			
+			if (findNode(name) != NULL) {
+				tcvNode* existingNode = findNode(name);
+				cout << "Value of " << name << " is: " << existingNode->value << endl;
+			}
+			else {
+				cout << "This variable/constant has not yet been defined" << endl;
+			}
+			
+		}	
+		
+		//Prints the text within the angle brackets. SYNTAX: @"<text>
+		else if (intext[0] == '@'){
+			if (intext[1] == ((char)34)) {
+				if (intext[2] == '<') {
+					
+					char* name = strdup(intext + 3); // Removes ! and " and <
+					
+					int hasCorrectEnd = 0;
+					int c = 0;
+					
+					for (int i = 0; i < strlen(name); i++){ //loops through string to remove '>'
+						if (name[i] != '>'){
+							name[c] = name[i];
+							c++;
+						}
+						else {
+							hasCorrectEnd = 1;
+						}
+					}
+					name[c] = '\0'; //sets the last now empty char to the null terminator
+					
+					if (hasCorrectEnd == 1) {
+						cout << name << endl;
+					}
+					else {
+						cout << "Invalid Input" << endl;
+					}
+				}
+			}
+		}
+		
+		//Predefined constant
+		else if(strlen(intext) > 1){
+			handlePreConstants(intext);
+			//test if intext is a word operator
+			handleWordOps(intext);
+		}
+		
+		//switch checks the different operators and proforms the calulations
+		else {
+			handleOP(intext[0]);
+        }		
+		
+		//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	}
+	return 0;
+}
+
